@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bank Management System (Educational Simulation)</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">B</span>
+      <div><strong>BMS Console</strong><small>Educational simulation</small></div>
+    </div>
+    <nav>
+      <a href="#/dashboard" data-nav="dashboard">Dashboard</a>
+      <a href="#/create" data-nav="create">Create Account</a>
+      <a href="#/accounts" data-nav="accounts">All Accounts</a>
+      <a href="#/details" data-nav="details">Account Details</a>
+      <a href="#/deposit" data-nav="deposit">Deposit</a>
+      <a href="#/withdraw" data-nav="withdraw">Withdraw</a>
+      <a href="#/transfer" data-nav="transfer">Transfer Funds</a>
+      <a href="#/history" data-nav="history">Transaction History</a>
+      <a href="#/queue" data-nav="queue">Service Queue</a>
+      <a href="#/sorted" data-nav="sorted">Sorted Accounts</a>
+      <a href="#/about" data-nav="about">About Project</a>
+    </nav>
+    <p class="sidebar-note">Local learning project. Not real banking software.</p>
+  </aside>
+
+  <div class="shell">
+    <header class="topbar">
+      <button class="menu-btn" id="menuBtn" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false">Menu</button>
+      <h1 id="pageTitle">Dashboard</h1>
+      <span class="status" id="serverStatus" role="status">Checking server...</span>
+    </header>
+
+    <main id="main" tabindex="-1">
+      <div class="banner" id="offlineBanner" hidden>
+        Cannot reach the C++ backend. Start <code>bank_server</code> and open
+        <code>http://localhost:8080</code> in the browser (do not open this file directly).
+      </div>
+
+      <!-- Dashboard -->
+      <section data-view="dashboard" hidden>
+        <div class="cards" id="dashCards"></div>
+        <div class="panel">
+          <h2>Recent transactions</h2>
+          <div class="table-wrap"><table id="dashTx"></table></div>
+          <p class="notice" id="dashNotice"></p>
+        </div>
+      </section>
+
+      <!-- Create account -->
+      <section data-view="create" hidden>
+        <div class="panel narrow">
+          <h2>Open a new account</h2>
+          <form id="createForm" novalidate>
+            <label for="cName">Account holder name</label>
+            <input id="cName" name="holderName" maxlength="60" autocomplete="off" required>
+            <label for="cType">Account type</label>
+            <select id="cType" name="accountType"><option>Savings</option><option>Current</option></select>
+            <p class="hint" id="cHint"></p>
+            <label for="cDeposit">Initial deposit (Rs)</label>
+            <input id="cDeposit" name="initialDeposit" inputmode="decimal" placeholder="e.g. 1000.00" autocomplete="off" required>
+            <p class="form-error" role="alert"></p>
+            <button class="btn primary" type="submit">Create account</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- All accounts -->
+      <section data-view="accounts" hidden>
+        <div class="panel">
+          <form class="inline-form" id="searchForm" role="search">
+            <label for="searchBox" class="sr-only">Search by account number or name</label>
+            <input id="searchBox" placeholder="Search by account number or name" autocomplete="off" maxlength="60">
+            <button class="btn" type="submit">Search</button>
+            <button class="btn ghost" type="button" id="searchClear">Clear</button>
+          </form>
+          <div class="table-wrap"><table id="accountsTable"></table></div>
+        </div>
+      </section>
+
+      <!-- Account details -->
+      <section data-view="details" hidden>
+        <div class="panel narrow">
+          <form class="inline-form" id="detailsForm" novalidate>
+            <label for="dNumber" class="sr-only">Account number</label>
+            <input id="dNumber" inputmode="numeric" placeholder="Account number" autocomplete="off">
+            <button class="btn primary" type="submit">View</button>
+          </form>
+          <p class="form-error" id="detailsError" role="alert"></p>
+        </div>
+        <div id="detailsBody" hidden>
+          <div class="panel">
+            <div class="detail-head">
+              <div><h2 id="dName"></h2><p class="muted" id="dMeta"></p></div>
+              <div class="big-balance"><small>Balance</small><strong id="dBalance"></strong></div>
+            </div>
+            <div class="actions">
+              <a class="btn" id="dDeposit" href="#/deposit">Deposit</a>
+              <a class="btn" id="dWithdraw" href="#/withdraw">Withdraw</a>
+              <button class="btn danger" id="dClose" type="button">Close account</button>
+            </div>
+          </div>
+          <div class="panel"><h2>Transactions for this account</h2>
+            <div class="table-wrap"><table id="dTx"></table></div></div>
+        </div>
+      </section>
+
+      <!-- Deposit -->
+      <section data-view="deposit" hidden>
+        <div class="panel narrow">
+          <h2>Deposit money</h2>
+          <form id="depositForm" data-kind="deposit" novalidate>
+            <label for="depAcc">Account number</label>
+            <input id="depAcc" name="accountNumber" inputmode="numeric" autocomplete="off" required>
+            <label for="depAmt">Amount (Rs)</label>
+            <input id="depAmt" name="amount" inputmode="decimal" placeholder="e.g. 500.00" autocomplete="off" required>
+            <p class="form-error" role="alert"></p>
+            <button class="btn primary" type="submit">Deposit</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- Withdraw -->
+      <section data-view="withdraw" hidden>
+        <div class="panel narrow">
+          <h2>Withdraw money</h2>
+          <form id="withdrawForm" data-kind="withdraw" novalidate>
+            <label for="wdAcc">Account number</label>
+            <input id="wdAcc" name="accountNumber" inputmode="numeric" autocomplete="off" required>
+            <label for="wdAmt">Amount (Rs)</label>
+            <input id="wdAmt" name="amount" inputmode="decimal" placeholder="e.g. 500.00" autocomplete="off" required>
+            <p class="form-error" role="alert"></p>
+            <button class="btn primary" type="submit">Withdraw</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- Transfer -->
+      <section data-view="transfer" hidden>
+        <div class="panel narrow">
+          <h2>Transfer funds</h2>
+          <form id="transferForm" novalidate>
+            <label for="trFrom">From account</label>
+            <input id="trFrom" name="fromAccount" inputmode="numeric" autocomplete="off" required>
+            <label for="trTo">To account</label>
+            <input id="trTo" name="toAccount" inputmode="numeric" autocomplete="off" required>
+            <label for="trAmt">Amount (Rs)</label>
+            <input id="trAmt" name="amount" inputmode="decimal" placeholder="e.g. 250.00" autocomplete="off" required>
+            <p class="form-error" role="alert"></p>
+            <button class="btn primary" type="submit">Transfer</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- History -->
+      <section data-view="history" hidden>
+        <div class="panel">
+          <h2>Undo the latest deposit or withdrawal</h2>
+          <p class="muted">Reversals use a stack, so only the most recent reversible transaction can be undone. Transfers cannot be reversed.</p>
+          <div id="reverseBox" class="reverse-box"></div>
+        </div>
+        <div class="panel">
+          <form class="inline-form" id="historyForm" novalidate>
+            <label for="hAcc" class="sr-only">Filter by account number</label>
+            <input id="hAcc" inputmode="numeric" placeholder="Filter by account number (optional)" autocomplete="off">
+            <button class="btn primary" type="submit">Apply</button>
+            <button class="btn ghost" type="button" id="historyClear">Show recent</button>
+          </form>
+          <p class="form-error" id="historyError" role="alert"></p>
+          <div class="table-wrap"><table id="historyTable"></table></div>
+        </div>
+      </section>
+
+      <!-- Queue -->
+      <section data-view="queue" hidden>
+        <div class="grid-2">
+          <div class="panel">
+            <h2>Issue a token</h2>
+            <form id="queueForm" novalidate>
+              <label for="qName">Customer name</label>
+              <input id="qName" maxlength="60" autocomplete="off" required>
+              <label for="qPurpose">Purpose (optional)</label>
+              <input id="qPurpose" maxlength="60" autocomplete="off">
+              <p class="form-error" role="alert"></p>
+              <button class="btn primary" type="submit">Add to queue</button>
+            </form>
+          </div>
+          <div class="panel">
+            <h2>Now serving</h2>
+            <p class="muted">Next token to be issued: <strong id="qNext">-</strong></p>
+            <button class="btn primary" id="serveBtn" type="button">Serve next customer</button>
+            <p class="served" id="servedMsg" role="status"></p>
+          </div>
+        </div>
+        <div class="panel"><h2>Waiting (first in, first out)</h2>
+          <div class="table-wrap"><table id="queueTable"></table></div></div>
+      </section>
+
+      <!-- Sorted -->
+      <section data-view="sorted" hidden>
+        <div class="panel">
+          <form class="inline-form" id="sortForm">
+            <label for="sortBy" class="sr-only">Sort by</label>
+            <select id="sortBy"><option value="name">Sort by name</option><option value="balance">Sort by balance</option></select>
+            <label for="sortOrder" class="sr-only">Order</label>
+            <select id="sortOrder"><option value="asc">Ascending</option><option value="desc">Descending</option></select>
+            <button class="btn primary" type="submit">Sort</button>
+          </form>
+          <p class="muted">Sorted by the hand-written merge sort. The stored account list is not changed.</p>
+          <div class="table-wrap"><table id="sortedTable"></table></div>
+        </div>
+      </section>
+
+      <!-- About -->
+      <section data-view="about" hidden>
+        <div class="panel prose">
+          <h2>About this project</h2>
+          <p>A college project showing <strong>OOP</strong>, <strong>data structures and algorithms</strong> and <strong>file handling</strong> in C++17. It simulates basic banking and must not be used for real money or real customer data.</p>
+          <ul>
+            <li><strong>Accounts</strong> live in a hand-written singly linked list.</li>
+            <li><strong>Undo</strong> uses a hand-written stack (last in, first out).</li>
+            <li><strong>Service tokens</strong> use a hand-written queue (first in, first out).</li>
+            <li><strong>Sorted view</strong> uses a hand-written merge sort.</li>
+            <li><strong>Storage</strong> is plain text files in the <code>data/</code> folder; money is kept as integer paise.</li>
+            <li><strong>Backend</strong> is C++ (cpp-httplib + nlohmann/json); this page only calls its JSON API.</li>
+          </ul>
+          <p class="muted" id="aboutServer"></p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="confirmDialog" aria-labelledby="confirmTitle">
+    <form method="dialog">
+      <h2 id="confirmTitle">Please confirm</h2>
+      <p id="confirmText"></p>
+      <div class="actions end">
+        <button class="btn ghost" value="cancel">Cancel</button>
+        <button class="btn danger" value="ok" id="confirmOk">Confirm</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toasts" aria-live="polite"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

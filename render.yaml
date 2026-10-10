@@ -1,0 +1,18 @@
+# Render "Blueprint": tells Render how to run this project.
+services:
+  - type: web
+    name: bank-management-system
+    runtime: docker
+    plan: free              # FREE: sleeps when idle and DATA IS LOST on restart/redeploy (see DEPLOY.md)
+    healthCheckPath: /healthz
+    envVars:
+      - key: BMS_USER
+        value: admin
+      - key: BMS_PASSWORD
+        sync: false         # Render will ask you to type a password when you create the service
+    # To KEEP data between restarts, switch to a paid plan and enable the disk:
+    #   plan: starter
+    #   disk:
+    #     name: bank-data
+    #     mountPath: /data
+    #     sizeGB: 1
