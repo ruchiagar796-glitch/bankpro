@@ -1,0 +1,9 @@
+.git
+build
+build-*
+data
+third_party
+node_modules
+tests/e2e/node_modules
+*.zip
+docs

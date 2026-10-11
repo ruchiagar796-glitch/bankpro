@@ -1,0 +1,18 @@
+# build output and downloaded dependencies
+build/
+build-*/
+third_party/
+# runtime data: contains customer information and password hashes, never commit it
+data/
+*.tmp
+.lock
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+# test tooling
+node_modules/
+__pycache__/
+# old copies of the project that were committed by accident
+*.zip

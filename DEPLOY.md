@@ -1,64 +1,54 @@
-# Put the Bank Management System on the internet (no compiling, no VS Code)
+# Deploying BankPro on Render
 
-You will: (1) put the project on GitHub using only your browser, (2) let a hosting site called **Render** build and run it for you. You get a link like `https://something.onrender.com` that you can share.
+Render builds the `Dockerfile` for you (it compiles the C++ code and **runs all tests during the build** - a failing test stops the deployment instead of putting a broken version online).
 
-> **Not verified by me:** I could not create accounts on GitHub or Render from my environment, so I have **not** deployed this and I do not have a URL for you. The app, the password login and the cloud settings were tested on Linux; the Docker build and the Render steps below follow Render's documented process but are untested. If a step looks different on screen, the Troubleshooting section helps.
+## 1. Update your existing service
 
-## Why GitHub Pages / Netlify / "just upload index.html" will NOT work
-Those sites only host files; they cannot run C++. The page would open but show **"Backend offline"**, because every button calls the C++ server. Render can run C++ (inside a Docker container), so the real banking logic and file handling stay exactly as they are.
+Your repository and the Render service already exist, so you only push and redeploy:
+```bash
+git add -A && git commit -m "Customer + admin portals" && git push
+```
+Render redeploys automatically if auto-deploy is on (otherwise: Dashboard -> your service -> **Manual Deploy -> Deploy latest commit**).
 
-## Step 1 - Upload the project to GitHub (browser only)
-1. Unzip `BankManagementSystem.zip` (right-click -> Extract All).
-2. Go to https://github.com , sign up / log in, click **+ -> New repository**. Name: `bank-management-system`. Choose **Public** (or Private) -> **Create repository**.
-3. On the new repository page click **"uploading an existing file"**.
-4. Open the unzipped folder and select **everything inside it** (Ctrl+A), then drag it into the GitHub page. (Drag the *contents*, not the zip, and not the outer folder.) The files `Dockerfile` and `render.yaml` must end up at the **top level** of the repository, next to `CMakeLists.txt`.
-   - Required: `Dockerfile`, `render.yaml`, `CMakeLists.txt`, folders `include`, `src`, `tests`, `frontend`.
-   - Optional: `docs`, `README.md`, `DEPLOY.md`, `.gitignore`, `.dockerignore` (hidden files may not show; the app works without them).
-   - Do NOT upload `build`, `third_party` or real data files (the zip does not contain them).
-   - GitHub's browser upload accepts about 100 files at a time; the project has about 60.
-5. Click **Commit changes**.
-
-## Step 2 - Deploy on Render
-1. Go to https://render.com and **sign up with GitHub** (allow it to see your repository).
-2. Click **New +  ->  Blueprint**, pick your `bank-management-system` repository, and continue. Render reads `render.yaml`.
-3. When it asks for **BMS_PASSWORD**, type a password you will share with viewers (the username is `admin`). Click **Apply / Deploy**.
-   - If you do not see "Blueprint": use **New + -> Web Service**, choose the repository, **Language: Docker**, **Instance type: Free**, and add environment variables `BMS_USER` = `admin` and `BMS_PASSWORD` = your password. Set **Health Check Path** to `/healthz`.
-4. Wait for the build (several minutes: Render compiles the C++ code **and runs all 41 tests**; if a test fails the deploy stops instead of going live broken). Watch the **Logs** tab.
-5. When it says **Live**, your URL is shown at the top of the service page (it looks like `https://bank-management-system-xxxx.onrender.com`; Render chooses the exact name). Open it: the browser asks for the login (`admin` + your password), then the dashboard appears with "Backend connected".
-
-Share the URL **and** the password with the people who should see it. Use HTTPS only (Render does this automatically).
-
-## What to expect on the FREE plan (important)
-Based on Render's documentation and recent reports (check https://render.com/pricing for current terms):
-- The service **goes to sleep after about 15 minutes without visitors**; the next visit takes roughly a minute to wake up.
-- The free disk is **temporary**: when the service sleeps, restarts or is redeployed, **all accounts and transactions are erased** and the app starts empty again. That is fine for a demo (create two accounts, deposit, transfer, show the history), but data will **not** persist.
-- To keep data permanently you need a **paid** instance with a persistent disk: in `render.yaml` remove `plan: free`, un-comment the `plan: starter` and `disk:` lines (disk mounted at `/data`, which the app already uses), and commit. Other hosts that allow a Docker app plus a storage volume (for example Fly.io or Railway) also work with the same `Dockerfile`; set the same environment variables.
-
-## Which features work where
-| Feature | Deployed on Render | Locally on your laptop |
+### Environment variables (Dashboard -> your service -> Environment)
+| Variable | Value | Notes |
 |---|---|---|
-| All 11 pages (create, deposit, withdraw, transfer, history, undo, queue, sorted, details, about) | Yes - the same C++ backend and rules | Yes |
-| C++ linked list / stack / queue / merge sort, validation | Yes | Yes |
-| File handling (`data/*.txt`) | Yes, but the files live inside the server and vanish on the free plan | Yes, permanent in your `data` folder |
-| Open and read `data/accounts.txt`, back up with `Copy-Item` | **No** (no access to the server's disk on the free plan) | Yes |
-| Password login | Yes (needs `BMS_PASSWORD`) | Optional |
-| Run automated tests | Run automatically at every build | `bank_tests.exe` (needs a compiler) |
-| Works when the free service is asleep | Wakes up on the next visit (about a minute) | Only while `bank_server` is running |
+| `BMS_ADMIN_USERNAME` | `admin` (or your choice) | first administrator's user name |
+| `BMS_ADMIN_PASSWORD` | **a strong password you choose** | **secret**; min 10 characters with a letter and a digit. Never put it in the code or on GitHub |
+| `BMS_TRUST_PROXY` | `1` | lets the server see the real client address and the https flag behind Render's proxy |
+| `BMS_DATA_DIR` | `/data` | already the Docker default; only change it if your disk is mounted elsewhere |
+| ~~`BMS_USER`, `BMS_PASSWORD`~~ | **delete them** | the old site-wide password no longer exists; the app ignores these |
 
-For your **viva**, demonstrate the data files and restart-persistence on a local run (or on a paid disk); use the live URL to show the interface.
+`PORT` is set by Render itself; the server listens on it automatically. `render.yaml` contains the same settings; because your service already exists, editing the variables in the dashboard is the surest way.
 
-## Security reminder
-This is a learning simulation with one shared password. Do not enter real names, real account numbers or real money amounts. Anyone with the URL and password can create and close accounts.
+## 2. First administrator
+On start-up, if `BMS_ADMIN_PASSWORD` is set and no admin called `BMS_ADMIN_USERNAME` exists, that admin is created (password stored only as an Argon2id hash). An existing admin is **never overwritten** - to change the password later, sign in to the Admin portal -> *My Password*. On the free plan (temporary storage) the admin is simply re-created from the environment variables at every start. There is no default or public password anywhere in the code.
 
-## Troubleshooting
-| Problem | What to do |
+## 3. Persistent storage (IMPORTANT)
+**The free plan has a temporary file system.** Everything in `/data` - customers, balances, transactions - is erased whenever the service restarts, sleeps and wakes, or redeploys. The Admin dashboard shows an orange warning in that case, and the startup log says `storage : TEMPORARY`.
+
+To keep data you need a **paid web service plan with a persistent disk** (Render disks are not available on the free plan; check Render's current pricing):
+1. Dashboard -> your service -> **Settings -> Instance type**: choose a paid plan (e.g. *Starter*).
+2. **Disks -> Add Disk**: Name `bank-data`, **Mount Path `/data`**, Size 1 GB.
+3. Redeploy. The startup log should now say `storage : persistent disk`.
+
+(`render.yaml` has the same settings commented out - uncomment them if you manage the service through the Blueprint.) A service with a disk runs **one** instance and has a brief downtime on each deploy; that is normal and also why a single data folder is safe.
+
+`docker-entrypoint.sh` fixes the ownership of the freshly mounted disk and then runs the server as an unprivileged user. This step is written for Render's root-owned disk mount but has not been tested on Render itself - if the log shows `Cannot open ... for writing`, tell me the exact message.
+
+If you cannot pay for a disk, the app still works as a demo: just remember that data resets, and use the same admin environment variables every time.
+
+## 4. Checking that it works
+* `https://<your-service>.onrender.com/healthz` should answer `ok`.
+* The home page shows *Customer Banking* and *Admin Login*.
+* Register a customer, sign in, deposit; sign in at `/admin-login` with your admin credentials.
+* Render **Logs** show start-up information (never passwords).
+
+## 5. Troubleshooting
+| Symptom | Fix |
 |---|---|
-| Build fails on Render | Open **Logs**, copy the last 30 lines and send them to me |
-| "Refusing to listen ... without a password" in the logs | `BMS_PASSWORD` is missing: Service -> **Environment** -> add it -> redeploy |
-| Page says "Backend offline" | The service is asleep or restarting; wait a minute and refresh |
-| Login box keeps reappearing | wrong password; username is `admin` unless you set `BMS_USER` |
-| Data disappeared | Free plan restart (see above) |
-| Dockerfile / render.yaml not found | They are not at the top level of the GitHub repository; move them there |
-
-## Environment variables the server understands
-`PORT` (set by Render), `BMS_HOST` (set to `0.0.0.0` by the Dockerfile; default `127.0.0.1`), `BMS_DATA_DIR` (default `data`, `/data` in Docker), `BMS_USER` (default `admin`), `BMS_PASSWORD` (required whenever the server listens on a public address). Options `--port`, `--data`, `--frontend` still work and take priority.
+| Build fails in the test step | open the build log; the failing test name tells you what broke. Nothing goes live |
+| Admin login always fails | `BMS_ADMIN_PASSWORD` missing / too short (<10 chars or no digit) - the log says `rejected`. Fix the variable and redeploy |
+| "Too many attempts" | brute-force protection; wait 15 minutes |
+| Logged out unexpectedly | sessions live in memory and end on restart or after 30 minutes idle / 8 hours |
+| Data vanished | you are on temporary storage - see section 3 |

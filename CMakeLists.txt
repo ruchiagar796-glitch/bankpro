@@ -35,6 +35,25 @@ bms_fetch("https://raw.githubusercontent.com/nlohmann/json/v3.11.3/single_includ
           "9bea4c8066ef4a1c206b2be5a36302f8926f7fdc6087af5d20b417d0cf103ea6")
 
 # ---------------------------------------------------------------------------
+# libsodium (Argon2id password hashing + secure random numbers).
+#   Debian/Ubuntu/Docker: apt install libsodium-dev      macOS: brew install libsodium
+#   Windows: vcpkg install libsodium  (then pass -DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cmake)
+# The STATIC library is preferred so the final program needs no extra runtime package.
+# ---------------------------------------------------------------------------
+find_path(SODIUM_INCLUDE_DIR sodium.h)
+find_library(SODIUM_LIBRARY NAMES libsodium.a sodium libsodium)
+if(NOT SODIUM_INCLUDE_DIR OR NOT SODIUM_LIBRARY)
+  find_package(unofficial-sodium CONFIG QUIET)
+endif()
+if(SODIUM_INCLUDE_DIR AND SODIUM_LIBRARY)
+  message(STATUS "libsodium: ${SODIUM_LIBRARY}")
+elseif(TARGET unofficial-sodium::sodium)
+  message(STATUS "libsodium: vcpkg target")
+else()
+  message(FATAL_ERROR "libsodium not found. Install it (Debian/Ubuntu: sudo apt install libsodium-dev; macOS: brew install libsodium; Windows: vcpkg install libsodium). See README.")
+endif()
+
+# ---------------------------------------------------------------------------
 # Core library: all business logic, data structures and file handling.
 # No HTTP code in here, so the tests can use it directly.
 # ---------------------------------------------------------------------------
@@ -48,11 +67,29 @@ add_library(bank_core STATIC
   src/TransactionHistory.cpp
   src/FileStorage.cpp
   src/Bank.cpp
-  src/BankService.cpp)
+  src/UserDirectory.cpp
+  src/Validation.cpp
+  src/Security.cpp
+  src/SessionManager.cpp
+  src/RateLimiter.cpp
+  src/BankService.cpp
+  src/AuthService.cpp
+  src/ApiServer.cpp)
 target_include_directories(bank_core PUBLIC include "${DEP_DIR}")
+if(SODIUM_INCLUDE_DIR AND SODIUM_LIBRARY)
+  target_include_directories(bank_core PUBLIC "${SODIUM_INCLUDE_DIR}")
+  target_link_libraries(bank_core PUBLIC "${SODIUM_LIBRARY}")
+  if(SODIUM_LIBRARY MATCHES "\\.a$")
+    target_compile_definitions(bank_core PUBLIC SODIUM_STATIC=1)
+  endif()
+else()
+  target_link_libraries(bank_core PUBLIC unofficial-sodium::sodium)
+endif()
+find_package(Threads REQUIRED)
+target_link_libraries(bank_core PUBLIC Threads::Threads)
 
 # HTTP server executable
-add_executable(bank_server src/main.cpp src/ApiServer.cpp)
+add_executable(bank_server src/main.cpp)
 target_link_libraries(bank_server PRIVATE bank_core)
 
 # Test executable
@@ -62,8 +99,14 @@ add_executable(bank_tests
   tests/test_transactions.cpp
   tests/test_file_storage.cpp
   tests/test_data_structures.cpp
-  tests/test_service.cpp)
+  tests/test_service.cpp
+  tests/test_security.cpp
+  tests/test_users.cpp
+  tests/test_authorization.cpp
+  tests/test_http.cpp)
 target_link_libraries(bank_tests PRIVATE bank_core)
+# The HTTP tests serve the real frontend files from this folder.
+target_compile_definitions(bank_tests PRIVATE FRONTEND_DIR="${CMAKE_SOURCE_DIR}/frontend")
 
 enable_testing()
 add_test(NAME bank_tests COMMAND bank_tests)
@@ -79,6 +122,6 @@ endforeach()
 
 if(WIN32)
   # cpp-httplib needs Windows 7+ APIs and the Winsock library.
-  target_compile_definitions(bank_server PRIVATE _WIN32_WINNT=0x0A00)
-  target_link_libraries(bank_server PRIVATE ws2_32)
+  target_compile_definitions(bank_core PUBLIC _WIN32_WINNT=0x0A00)
+  target_link_libraries(bank_core PUBLIC ws2_32)
 endif()

@@ -6,11 +6,14 @@ services:
     plan: free              # FREE: sleeps when idle and DATA IS LOST on restart/redeploy (see DEPLOY.md)
     healthCheckPath: /healthz
     envVars:
-      - key: BMS_USER
-        value: admin
-      - key: BMS_PASSWORD
-        sync: false         # Render will ask you to type a password when you create the service
-    # To KEEP data between restarts, switch to a paid plan and enable the disk:
+      - key: BMS_ADMIN_USERNAME
+        value: admin        # the first administrator's user name (not secret)
+      - key: BMS_ADMIN_PASSWORD
+        sync: false         # SECRET: Render asks you to type it. Minimum 10 characters, a letter and a digit.
+      - key: BMS_TRUST_PROXY
+        value: "1"          # Render's proxy forwards the real client address / https flag
+    # To KEEP customers, balances and transactions between restarts, switch to a paid plan and
+    # enable the disk (the app already stores everything in /data):
     #   plan: starter
     #   disk:
     #     name: bank-data
